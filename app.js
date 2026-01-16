@@ -10,15 +10,7 @@ import {
 import { getFakeProfile, getWikiItem } from './game.js';
 import { getRandomGif, getRandomGif2 } from './gif.js';
 import { Level } from 'level';
-import tenor from 'tenorjs';
 const db = new Level('example', { valueEncoding: 'json' })
-
-const Tenor = tenor.client({
-  Key: process.env.TENOR_KEY || 'YOUR DEVELOPER KEY HERE',
-  Filter: 'off', // not case sensitive
-  Locale: 'en_US', // case-sensitivity depends on input,
-  MediaFilter: 'minimal' // not case sensitive
-});
 
 // Add an entry with key 'a' and value 1
 
