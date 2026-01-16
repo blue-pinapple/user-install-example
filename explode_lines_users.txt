@@ -1,0 +1,7 @@
+{user} has decided to explode {target}
+{target} has been exploded...
+{user} tried to explode {target}... but failed
+I AM GONNA EXPLODE YOU ALL, especially {target}
+THAT'S IT. Explode {target}
+{target} exploded cos of {user}
+

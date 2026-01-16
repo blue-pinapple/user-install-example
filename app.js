@@ -5,8 +5,23 @@ import {
   VerifyDiscordRequest,
   getServerLeaderboard,
   createPlayerEmbed,
+  getRandomLine,
 } from './utils.js';
 import { getFakeProfile, getWikiItem } from './game.js';
+import { getRandomGif, getRandomGif2 } from './gif.js';
+import { Level } from 'level';
+import tenor from 'tenorjs';
+const db = new Level('example', { valueEncoding: 'json' })
+
+const Tenor = tenor.client({
+  Key: process.env.TENOR_KEY || 'YOUR DEVELOPER KEY HERE',
+  Filter: 'off', // not case sensitive
+  Locale: 'en_US', // case-sensitivity depends on input,
+  MediaFilter: 'minimal' // not case sensitive
+});
+
+// Add an entry with key 'a' and value 1
+
 
 // Create an express app
 const app = express();
@@ -20,7 +35,7 @@ app.use(express.json({ verify: VerifyDiscordRequest(process.env.PUBLIC_KEY) }));
  */
 app.post('/interactions', async function (req, res) {
   // Interaction type and data
-  const { type, data } = req.body;
+  const { type, data, user } = req.body;
 
   /**
    * Handle verification requests
@@ -30,15 +45,14 @@ app.post('/interactions', async function (req, res) {
   }
 
   // Log request bodies
-  console.log(req.body);
+  //console.log(req.body);
 
   /**
    * Handle slash command requests
    * See https://discord.com/developers/docs/interactions/application-commands#slash-commands
    */
   if (type === InteractionType.APPLICATION_COMMAND) {
-    const { name } = data;
-
+    const { name, options, resolved } = data;
     // "leaderboard" command
     if (name === 'leaderboard') {
       // Send a message into the channel where command was triggered from
@@ -59,7 +73,7 @@ app.post('/interactions', async function (req, res) {
 
       // Use interaction context that the interaction was triggered from
       const interactionContext = req.body.context;
-
+      
       // Construct `data` for our interaction response. The profile embed will be included regardless of interaction context
       let profilePayloadData = {
         embeds: [profileEmbed],
@@ -116,6 +130,99 @@ app.post('/interactions', async function (req, res) {
         },
       });
     }
+    // "edit" command
+    if (name === 'card') {
+      let id = resolved.attachments[options[1].value].id
+          console.log(resolved.attachments);
+      await db.put(id, resolved.attachments[options[1].value].url)
+      // Send initial message with a button that can edit it when pressed
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: {
+          content: resolved.attachments[options[0].value].url,
+          components: [
+            {
+              type: 1,
+              components: [
+                {
+                  type: 2,
+                  label: 'Open Card',
+                  custom_id: 'edit_me',
+                  style: 1,
+                },
+                {
+                  type: 2,
+                  style:2,
+                  label: 'Data',
+                  custom_id: id,
+                  disabled: true,
+                }
+              ],
+            },
+          ],
+        },
+      });
+    }
+    
+    // "explode" command
+    if (name === 'explode') {
+      let gifURL = await getRandomGif2("Explosion")
+      let text = "bomb"
+
+      // Send initial message with a button that can edit it when pressed
+      if (options?.length > 0) {
+        text = await getRandomLine("explode_lines_users.txt");
+        const target = resolved.users[options[0].value];
+        text = text.replace("{target}", "<@"+target.id+">")
+        //console.log(user);
+        try {
+          text = text.replace("{user}", "<@"+user.id+">")
+        } catch (e) {
+          text = text.replace("{user}", "Someone")
+          console.log("failed to find user \n", e);
+        }
+      } else {
+        text = await getRandomLine("explode_lines.txt");
+      }
+      //bolds text
+      text = `**${text}**`;
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: {
+          "flags": 32768,
+          "components": [
+            {
+              "type": 12,
+              "items": [
+                {
+                  "media": {
+                    "url": gifURL,
+                  },
+                  "description": null,
+                  "spoiler": false
+                }
+              ]
+            },
+            {
+              "type": 14,
+              "divider": false,
+              "spacing": 1
+            },
+            {
+              "type": 10,
+              "content": text
+            }
+          ]
+        },
+      });
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: {
+          content: gifURL,
+        },
+      });
+    }
+
     // "wiki" command
     if (name === 'wiki') {
       const option = data.options[0];
@@ -132,6 +239,34 @@ app.post('/interactions', async function (req, res) {
 
   // handle button interaction
   if (type === InteractionType.MESSAGE_COMPONENT) {
+    const { custom_id } = req.body.data;
+
+    // If the edit button was pressed, update the original message
+    if (custom_id === 'edit_me') {
+      const value = await db.get(req.body.message.components[0].components[1].custom_id)
+      return res.send({
+        type: InteractionResponseType.UPDATE_MESSAGE,
+        data: {
+          content: value,
+          components: [
+            {
+              type: 1,
+              components: [
+                {
+                  type: 2,
+                  label: 'Merry Christmas',
+                  custom_id: 'edit_me',
+                  style: 2,
+                  disabled: true,
+                },
+              ],
+            },
+          ],
+        },
+      });
+    }
+
+    // fallback for other components (e.g., profile share)
     const profile = getFakeProfile(0);
     const profileEmbed = createPlayerEmbed(profile);
     return res.send({

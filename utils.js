@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { verifyKey } from 'discord-interactions';
 import { getFakeUsername } from './game.js';
+import fs from 'fs';
 
 export function VerifyDiscordRequest(clientKey) {
   return function (req, res, buf) {
@@ -112,4 +113,18 @@ export function createPlayerEmbed(profile) {
       url: 'https://raw.githubusercontent.com/shaydewael/example-app/main/assets/fake-icon.png',
     },
   };
+}
+
+// returns a Promise which resolves to a random non-empty line from the file
+export async function getRandomLine(filename) {
+  try {
+    const data = await fs.promises.readFile(filename, 'utf-8');
+    const lines = data.split('\n').filter((l) => l.trim().length > 0);
+    if (lines.length === 0) return '';
+    const line = lines[Math.floor(Math.random() * lines.length)];
+    return line;
+  } catch (err) {
+    console.error(`Error reading ${filename}:`, err);
+    throw err;
+  }
 }
